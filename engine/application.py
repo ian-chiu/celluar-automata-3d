@@ -3,12 +3,13 @@ import pygame as pg
 import moderngl as mgl
 import sys
 from engine.renderer import Renderer
-from engine.resource_manager import ShaderManager, VboManager
-from engine.utils import get_vao
+from engine.shader import Shader
 from engine.orbit_control import OrbitControl
+import engine.gl as gl
+
 
 class Application:
-    def __init__(self, window_size=(1600, 900)):
+    def __init__(self, window_size=(1600, 900), window_title="Application"):
         self._window_size = window_size
         # init pygame module
         pg.init()
@@ -20,16 +21,17 @@ class Application:
         # create opengl context
         self._surface = pg.display.set_mode(self._window_size,
             pg.OPENGL | pg.DOUBLEBUF | pg.RESIZABLE)
+        pg.display.set_caption(window_title)
         # mouse settings
-        pg.event.set_grab(True)
+        pg.event.set_grab(False)
         pg.mouse.set_visible(True)
-        # detect and use existing opengl context
-        self.ctx = mgl.create_context()
         # create an object to help track time
         self.clock = pg.time.Clock()
-        # prepare reource managers
-        ShaderManager.begin(self.ctx)
-        VboManager.begin(self.ctx)
+        # prepare singletons
+        gl.GLUtils.set_context()
+        gl.ctx.enable(flags=mgl.DEPTH_TEST)
+        Shader.init()
+        Renderer.init()
 
     def on_update(self, delta_time: float):
         pass
@@ -51,14 +53,16 @@ class Application:
             self._render()
             self.clock.tick(60)
 
+    def _shutdown(self):
+        Shader.shutdown()
+        pg.quit()
+        sys.exit()
+
     def _check_events(self):
         for event in pg.event.get():
             if (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE) \
                     or event.type == pg.QUIT:
-                VboManager.end()
-                ShaderManager.end()
-                pg.quit()
-                sys.exit()
+                self._shutdown()
             if event.type == pg.VIDEORESIZE:
                 self._window_size = (event.w, event.h)
                 self._create_surface()
@@ -68,7 +72,9 @@ class Application:
         self.on_update(delta_time)
 
     def _render(self):
-        self.ctx.clear(0.1, 0.1, 0.1)
+        if not gl:
+            return
+        gl.ctx.clear(0.1, 0.1, 0.1)
         self.on_render()
         pg.display.flip()
 

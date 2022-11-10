@@ -12,8 +12,8 @@ class Camera:
         self._near = near
         self._far = far
         self._position = glm.vec3(0, 0, 10)
-        self._front = glm.vec3(0, 0, -1)
-        self._up = glm.vec3(0, 1, 0)
+        self.front = glm.vec3(0, 0, -1)
+        self.up = glm.vec3(0, 1, 0)
         self._pitch = 0.0
         self._yaw = -89.0
         self._view_matrix = glm.mat4()
@@ -29,9 +29,10 @@ class Camera:
         direction.y = glm.sin(glm.radians(self._pitch))
         direction.z = glm.sin(glm.radians(self._yaw)) \
                       * glm.cos(glm.radians(self._pitch))
-        self._front = glm.normalize(direction)
+        self.front = glm.normalize(direction)
         self._view_matrix = glm.lookAt(self._position,
-                                       self._position + self._front, self._up)
+                                       self._position + self.front,
+                                       self.up)
         self.view_proj_matrix = self._proj_matrix * self._view_matrix
 
     def recalculate_proj_matrix(self):
@@ -41,7 +42,7 @@ class Camera:
 
     def focus(self, focus_position: glm.vec3):
         self._view_matrix = glm.lookAt(self._position,
-                                       focus_position, self._up)
+                                       focus_position, self.up)
         self.view_proj_matrix = self._proj_matrix * self._view_matrix
 
     @property
@@ -51,6 +52,15 @@ class Camera:
     @view_matrix.setter
     def view_matrix(self, view_matrix: glm.mat4):
         self._view_matrix = view_matrix
+        self.view_proj_matrix = self._proj_matrix * self._view_matrix
+
+    @property
+    def proj_matrix(self):
+        return self._proj_matrix
+
+    @proj_matrix.setter
+    def proj_matrix(self, proj_matrix: glm.mat4):
+        self._proj_matrix = proj_matrix
         self.view_proj_matrix = self._proj_matrix * self._view_matrix
 
     @property
