@@ -1,4 +1,7 @@
-pygame
+pybind11
 moderngl
 numpy
 PyGLM
+pyGLFW
+Pillow
+git+https://github.com/pyimgui/pyimgui.git@dev/version-2.0

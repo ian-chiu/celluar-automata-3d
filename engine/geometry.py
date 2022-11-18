@@ -1,8 +1,9 @@
+from typing import List
 import numpy as np
 import engine.gl as gl
 
 class BaseGeometry:
-    def __init__(self, format: str, attributes: list[str]):
+    def __init__(self, format: str, attributes: List[str]):
         self.format = format
         self.attributes = attributes
         self.buffer = self._get_buffer()
@@ -28,8 +29,9 @@ class BoxGeometry(BaseGeometry):
                    (3, 7, 4), (3, 2, 7),
                    (0, 6, 1), (0, 5, 6)]
 
-        positions = [(-1, -1, 1), ( 1, -1,  1), (1,  1,  1), (-1, 1,  1),
-                     (-1, 1, -1), (-1, -1, -1), (1, -1, -1), ( 1, 1, -1)]
+        positions = [(-0.5, -0.5, 0.5), ( 0.5, -0.5,  0.5), (0.5,  0.5,  0.5),
+                     (-0.5, 0.5,  0.5), (-0.5, 0.5, -0.5), (-0.5, -0.5, -0.5),
+                     (0.5, -0.5, -0.5), ( 0.5, 0.5, -0.5)]
         vertex_data = self._get_data(positions, indices)
 
         uv_vertices = [(0, 0), (1, 0), (1, 1), (0, 1)]

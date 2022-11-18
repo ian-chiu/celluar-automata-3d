@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 import glm
 import numpy as np
 from pathlib import Path
@@ -39,7 +39,7 @@ class PhongMaterial(BaseMaterial):
             self,
             diffuse_src: Optional[Path] = None,
             specular_src: Optional[Path] = None,
-            color: list[float] = [1, 1, 1],
+            color: List[float] = [1, 1, 1],
             shininess = 32.0
             ) -> None:
         super().__init__()

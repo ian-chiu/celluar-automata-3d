@@ -1,11 +1,10 @@
-from typing import Tuple
+from typing import Tuple, List
 import glm
 import moderngl as mgl
 from moderngl import Texture, TextureCube
 from pathlib import Path
-import pygame as pg
 import engine.gl as gl
-
+from PIL import Image, ImageOps
 
 def get_white_texture():
     self = get_white_texture
@@ -27,26 +26,26 @@ def get_depth_texture(
 
 def load_texture_cube(dir_path: Path, ext='png') -> TextureCube:
     faces = ['right', 'left', 'top', 'bottom'] + ['front', 'back'][::-1]
-    textures = []
+    textures: List[Image.Image] = []
     for face in faces:
-        texture = pg.image.load(dir_path / f'{face}.{ext}').convert()
+        texture = Image.open(dir_path / f'{face}.{ext}')
         if face in ['right', 'left', 'front', 'back']:
-            texture = pg.transform.flip(texture, flip_x=True, flip_y=False)
+            texture = ImageOps.mirror(texture)
         else:
-            texture = pg.transform.flip(texture, flip_x=False, flip_y=True)
+            texture = ImageOps.flip(texture)
         textures.append(texture)
     size = textures[0].get_size()
     texture_cube = gl.ctx.texture_cube(size=size, components=3, data=None)
     for i in range(6):
-        texture_data = pg.image.tostring(textures[i], 'RGB')
+        texture_data = textures[i].tobytes("raw", "RGB")
         texture_cube.write(face=i, data=texture_data)
     return texture_cube
 
 def load_texture(path: Path) -> Texture:
-    texture = pg.image.load(path).convert()
-    texture = pg.transform.flip(texture, flip_x=False, flip_y=True)
+    texture = Image.open(path)
+    texture = ImageOps.flip(texture)
     texture = gl.ctx.texture(size=texture.get_size(), components=3,
-                          data=pg.image.tostring(texture, 'RGB'))
+                             data=texture.tobytes("raw", "RGB"))
     texture.filter = (mgl.LINEAR_MIPMAP_LINEAR, mgl.LINEAR)
     texture.build_mipmaps()
     texture.anisotropy = 32.0

@@ -1,12 +1,13 @@
+from typing import List
 import glm
 import numpy as np
 
 class Light:
     def __init__(
             self,
-            ambient: list[float] = [1, 1, 1],
-            diffuse: list[float] = [1, 1, 1],
-            specular: list[float] = [1, 1, 1]
+            ambient: List[float] = [1, 1, 1],
+            diffuse: List[float] = [1, 1, 1],
+            specular: List[float] = [1, 1, 1]
             ) -> None:
         self.ambient = glm.vec3(ambient)
         self.diffuse = glm.vec3(diffuse)
@@ -15,10 +16,10 @@ class Light:
 class PointLight(Light):
     def __init__(
             self,
-            ambient: list[float] = [1, 1, 1],
-            diffuse: list[float] = [1, 1, 1],
-            specular: list[float] = [1, 1, 1],
-            position: list[float] = [0, 0, 0],
+            ambient: List[float] = [1, 1, 1],
+            diffuse: List[float] = [1, 1, 1],
+            specular: List[float] = [1, 1, 1],
+            position: List[float] = [0, 0, 0],
             linear: float = 0.09,
             quadratic: float = 0.032
             ) -> None:
@@ -30,10 +31,10 @@ class PointLight(Light):
 class DirLight(Light):
     def __init__(
             self,
-            ambient: list[float] = [1, 1, 1],
-            diffuse: list[float] = [1, 1, 1],
-            specular: list[float] = [1, 1, 1],
-            direction: list[float] = [0, 0, 0],
+            ambient: List[float] = [1, 1, 1],
+            diffuse: List[float] = [1, 1, 1],
+            specular: List[float] = [1, 1, 1],
+            direction: List[float] = [0, 0, 0],
             ) -> None:
         super().__init__(ambient, diffuse, specular)
         self.direction = glm.vec3(direction)
@@ -41,11 +42,11 @@ class DirLight(Light):
 class SpotLight(Light):
     def __init__(
             self,
-            ambient: list[float] = [1, 1, 1],
-            diffuse: list[float] = [1, 1, 1],
-            specular: list[float] = [1, 1, 1],
-            position: list[float] = [0, 0, 0],
-            direction: list[float] = [0, 0, 0],
+            ambient: List[float] = [1, 1, 1],
+            diffuse: List[float] = [1, 1, 1],
+            specular: List[float] = [1, 1, 1],
+            position: List[float] = [0, 0, 0],
+            direction: List[float] = [0, 0, 0],
             cutoff: float = 0.09,
             ) -> None:
         super().__init__(ambient, diffuse, specular)

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from moderngl import VertexArray, TextureCube
 import glm
 from engine.camera import Camera
@@ -14,7 +14,7 @@ class Renderer:
     camera: Optional[Camera] = None
     skybox: Optional[VertexArray] = None
     env_map: Optional[TextureCube] = None
-    point_lights: list[PointLight] = []
+    point_lights: List[PointLight] = []
     dir_light: Optional[DirLight] = None
 
     @staticmethod
@@ -26,7 +26,7 @@ class Renderer:
 
     @staticmethod
     def begin_scene(camera: Camera,
-                    point_lights: list[PointLight] = [],
+                    point_lights: List[PointLight] = [],
                     dir_light: Optional[DirLight] = None,
                     env_map: Optional[TextureCube] = None,
                     ) -> None:
@@ -51,7 +51,7 @@ class Renderer:
         vao.render()
 
     @staticmethod
-    def draw_model(model: Model) -> None:
+    def draw_model(model: Model, transform = glm.identity(glm.mat4)) -> None:
         self = Renderer
         model.material.use()
         if not model.shader:
@@ -61,24 +61,10 @@ class Renderer:
                 self.camera.view_proj_matrix)
             model.shader['u_ViewPosition'].write(
                 self.camera.position)
-        model.shader['u_Transform'].write(model.transform)
-        if self.point_lights and len(self.point_lights):
-            model.shader['u_NPointLights'].write(
-                glm.int32(len(self.point_lights)))
-        for i in range(min(N_MAX_POINT_LIGHTS, len(self.point_lights))):
-            point_light = self.point_lights[i]
-            name = f'u_PointLights[{i}]'
-            model.shader[name + '.linear'].write(point_light.linear)
-            model.shader[name + '.quadratic'].write(point_light.quadratic)
-            model.shader[name + '.position'].write(point_light.position)
-            model.shader[name + '.ambient'].write(point_light.ambient)
-            model.shader[name + '.diffuse'].write(point_light.diffuse)
-            model.shader[name + '.specular'].write(point_light.specular)
+        model.shader['u_Transform'].write(transform * model.transform)
+        self._upload_point_lights(model)
         if self.dir_light:
-            model.shader['u_DirLight.direction'].write(self.dir_light.direction)
-            model.shader['u_DirLight.ambient'].write(self.dir_light.ambient)
-            model.shader['u_DirLight.diffuse'].write(self.dir_light.diffuse)
-            model.shader['u_DirLight.specular'].write(self.dir_light.specular)
+            self._upload_dir_light(model)
         model.vertex_array.render()
 
     @staticmethod
@@ -95,3 +81,27 @@ class Renderer:
         gl.ctx.depth_func = '<='
         self.skybox.render()
         gl.ctx.depth_func = '<'
+
+    @staticmethod
+    def _upload_point_lights(model: Model) -> None:
+        self = Renderer
+        if self.point_lights and len(self.point_lights):
+            model.shader['u_NPointLights'].write(
+                glm.int32(len(self.point_lights)))
+        for i in range(min(N_MAX_POINT_LIGHTS, len(self.point_lights))):
+            point_light = self.point_lights[i]
+            name = f'u_PointLights[{i}]'
+            model.shader[name + '.linear'].write(point_light.linear)
+            model.shader[name + '.quadratic'].write(point_light.quadratic)
+            model.shader[name + '.position'].write(point_light.position)
+            model.shader[name + '.ambient'].write(point_light.ambient)
+            model.shader[name + '.diffuse'].write(point_light.diffuse)
+            model.shader[name + '.specular'].write(point_light.specular)
+
+    @staticmethod
+    def _upload_dir_light(model: Model) -> None:
+        self = Renderer
+        model.shader['u_DirLight.direction'].write(self.dir_light.direction)
+        model.shader['u_DirLight.ambient'].write(self.dir_light.ambient)
+        model.shader['u_DirLight.diffuse'].write(self.dir_light.diffuse)
+        model.shader['u_DirLight.specular'].write(self.dir_light.specular)
