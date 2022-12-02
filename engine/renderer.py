@@ -35,8 +35,9 @@ class Renderer:
     def init():
         self = Renderer
         geo = EnvBoxGemoetry()
-        self.skybox = gl.ctx.vertex_array(Shader.background,
-                                          [(geo.buffer, geo.format, *geo.attributes)], skip_errors=True)
+        self.skybox = gl.ctx.vertex_array(
+            Shader.background, [(geo.buffer, geo.format, *geo.attributes)],
+            skip_errors=True)
 
         self.shader = Shader.flat
         quad_indices = []

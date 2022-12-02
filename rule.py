@@ -6,6 +6,7 @@ class Rule:
             initial_radius = 0.1
             ) -> None:
         tokens = format.split('/')
+        self.format = format
         self.survival = {int(v) for v in tokens[0].split(',')}
         self.spawn = {int(v) for v in tokens[1].split(',')}
         self.max_state = int(tokens[2])

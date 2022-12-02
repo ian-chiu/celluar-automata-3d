@@ -4,14 +4,15 @@ from engine.application import Application
 from engine.camera import Camera
 from engine.event import Event, EventType
 from engine.input import get_mouse_position, is_key_pressed, \
-                         is_mouse_pressed, set_cursor_visable
+    is_mouse_pressed, set_cursor_visable
 
 
 class FreeControl:
     def __init__(self):
         self.camera = Camera()
         self.camera.position = glm.vec3(0, 0, 0)
-        self._speed = 1
+        self._speed = 2.0
+        self._angular_velocity = 0.5
         self._is_first_mouse = True
         self._last_x = 0
         self._last_y = 0
@@ -22,9 +23,9 @@ class FreeControl:
             h = Application.window.height
             self.camera.aspect = w / h
         if event.type == EventType.MouseScrolled:
-            sensitivity = 0.001
+            sensitivity = 0.1
             y = event.y * sensitivity
-            self.camera.fov -= y
+            self._speed += y
 
     def on_update(self, delta_time: float):
         right = glm.normalize(glm.cross(self.camera.front, self.camera.up))
@@ -39,7 +40,7 @@ class FreeControl:
             updated_position += right * delta_time * self._speed
         self.camera.position = updated_position
 
-        if is_mouse_pressed(glfw.MOUSE_BUTTON_1):
+        if is_mouse_pressed(glfw.MOUSE_BUTTON_2):
             if self._is_first_mouse:
                 self._last_x, self._last_y = get_mouse_position()
                 self._is_first_mouse = False
@@ -50,8 +51,8 @@ class FreeControl:
             self._last_x = x
             self._last_y = y
             sensitivity = 0.3
-            self.camera.yaw += x_offset * sensitivity
-            self.camera.pitch += y_offset * sensitivity
+            self.camera.yaw += x_offset * sensitivity * self._angular_velocity
+            self.camera.pitch += y_offset * sensitivity * self._angular_velocity
         else:
             if not self._is_first_mouse:
                 set_cursor_visable(True)

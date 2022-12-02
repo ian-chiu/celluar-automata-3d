@@ -37,19 +37,26 @@ class Application:
     def on_render_gui(self):
         pass
 
+    def on_ready(self):
+        pass
+
     def run(self):
+        self.on_ready()
         prev_time = glfw.get_time()
+        prev_frame_time = glfw.get_time()
         frame_count = 0
         while self.running:
             frame_count += 1
             curr_time = glfw.get_time()
-            delta_time = curr_time - prev_time
-            if delta_time > 0.5:
-                self.fps = frame_count / delta_time
+            elapsed_time = curr_time - prev_frame_time
+            duration = curr_time - prev_time
+            if duration > 0.5:
+                self.fps = frame_count / duration
                 prev_time = curr_time
                 frame_count = 0
-            self._update(delta_time)
+            self._update(elapsed_time)
             self._render()
+            prev_frame_time = curr_time
 
     def _shutdown(self):
         Shader.shutdown()

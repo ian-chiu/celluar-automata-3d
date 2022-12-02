@@ -48,11 +48,10 @@ Board::Board(int side, py::object rule, float evolveTime)
       mCellsBuffer(side * side * side),
       mVertexBuffer(MAX_BUFFER_SIZE),
       mVertexBufferIndex(0) {
-    mVertices.reserve(MAX_BUFFER_SIZE);
     py::object material =
         PhongMaterial("color"_a = py::make_tuple(0.5, 0.8, 0.1));
     mCubeModel = Model(BoxGeometry(), material);
-    randomise();
+    randomise(rule);
 }
 
 void Board::update() {
@@ -80,16 +79,24 @@ void Board::render() {
     }
 }
 
-void Board::setRule(py::object rule) {
-    mRule = rule;
+void Board::clear() {
     resetVertexBuffer();
-    randomise();
+    std::fill(mCells.begin(), mCells.end(), 0);
+    std::fill(mCellsBuffer.begin(), mCellsBuffer.end(), 0);
 }
 
-void Board::randomise() {
-    std::fill(mCells.begin(), mCells.end(), 0);
-    float density = mRule.attr("initial_density").cast<float>();
-    float radius = mRule.attr("initial_radius").cast<float>();
+void Board::setSide(size_t side) {
+    mSide = side;
+    clear();
+}
+
+void Board::setRule(py::object rule) {
+    mRule = rule;
+    clear();
+    randomise(rule);
+}
+
+void Board::randomise(float radius, float density) {
     float side = mSide;
     for (size_t index = 0; index < mCells.size(); index++) {
         std::vector<int> coordinate = getCoordinate(index);
@@ -106,6 +113,12 @@ void Board::randomise() {
     calculateGreedyMeshes();
 }
 
+void Board::randomise(py::object rule) {
+    float density = rule.attr("initial_density").cast<float>();
+    float radius = rule.attr("initial_radius").cast<float>();
+    randomise(radius, density);
+}
+
 int Board::getIndex(int x, int y, int z) {
     return (z * mSide * mSide) + (y * mSide) + x;
 }
@@ -117,8 +130,6 @@ std::vector<int> Board::getCoordinate(int index) {
     int x = index % mSide;
     return {x, y, z};
 }
-
-size_t Board::getQuadCount() const { return mQuadCount; }
 
 void Board::resetVertexBuffer() {
     float* data = mVertexBuffer.mutable_data(0);
@@ -305,14 +316,15 @@ PYBIND11_MODULE(_board, m) {
         .def(py::init<int, py::object, float>())
         .def("update", &Board::update)
         .def("render", &Board::render)
-        .def("set_rule", &Board::setRule)
-        .def("randomise", &Board::randomise)
-        .def("get_quad_count", &Board::getQuadCount)
-        .def("get_vertices",
-             [](Board& board) {
-                 py::array_t<float> ret(board.mVertexBufferIndex,
-                                        board.mVertices.data());
-                 return ret;
+        .def("clear", &Board::clear)
+        .def("randomise",
+             [](Board& board, float radius, float density) {
+                 board.randomise(radius, density);
              })
+        .def("set_side", &Board::setSide)
+        .def("get_side", &Board::getSide)
+        .def("set_rule", &Board::setRule)
+        .def("get_rule", &Board::getRule)
+        .def("get_quad_count", &Board::getQuadCount)
         .def_readonly("vertex_buffer", &Board::mVertexBuffer);
 }

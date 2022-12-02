@@ -1,7 +1,8 @@
 #pragma once
 
-#include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+
 #include <vector>
 
 namespace py = pybind11;
@@ -10,14 +11,18 @@ class Board {
  public:
     Board(int side, py::object rule, float evolveTime = 0.3f);
     void update();
-    void randomise();
+    void randomise(float radius, float density);
+    void randomise(py::object rule);
     void render();
+    void clear();
     void setRule(py::object rule);
-    size_t getQuadCount() const;
+    void setSide(size_t side);
+    inline py::object getRule() const { return mRule; }
+    inline size_t getQuadCount() const { return mQuadCount; }
+    inline size_t getSide() const { return mSide; }
 
  public:
     py::array_t<float> mVertexBuffer;
-    std::vector<float> mVertices;
     size_t mVertexBufferIndex;
 
  private:
