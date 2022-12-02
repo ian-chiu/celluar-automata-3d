@@ -4,6 +4,7 @@ from moderngl import Context
 
 ctx: Optional[Context] = None
 
+
 class GLUtils:
     @staticmethod
     def set_context():

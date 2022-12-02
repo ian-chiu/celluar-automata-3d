@@ -10,6 +10,7 @@ from engine.texture import load_texture, get_white_texture
 class BaseMaterial:
     def __init__(self):
         self.shader = Shader.flat
+        self.color = glm.vec4()
 
     def use(self):
         pass
@@ -19,7 +20,7 @@ class FlatMaterial(BaseMaterial):
     def __init__(
             self,
             texture_src: Optional[Path] = None,
-            color = (1, 1, 1, 1),
+            color: List[float] = [1, 1, 1, 1]
             ) -> None:
         super().__init__()
         self.shader = Shader.flat
@@ -49,7 +50,7 @@ class PhongMaterial(BaseMaterial):
              else load_texture(diffuse_src)
         self.specular = white_texture if not specular_src \
              else load_texture(specular_src)
-        self.color = glm.vec3(color)
+        self.color = glm.vec4(*color, 1.0)
         self.shininess = np.float32(shininess)
 
     def use(self):
@@ -61,7 +62,7 @@ class PhongMaterial(BaseMaterial):
             np.int32(self.TextureSlot.Diffuse))
         self.shader['u_Material.specular'].write(
             np.int32(self.TextureSlot.Specular))
-        self.shader['u_Material.color'].write(self.color)
+        self.shader['u_Material.color'].write(glm.vec3(self.color))
         self.shader['u_Material.shininess'].write(self.shininess)
 
     class TextureSlot(IntEnum):

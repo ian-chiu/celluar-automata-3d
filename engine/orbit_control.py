@@ -32,7 +32,7 @@ class OrbitControl:
             self._zoom(self._speed * delta_time)
         if is_key_pressed(glfw.KEY_KP_SUBTRACT):
             self._zoom(-self._speed * delta_time)
-        if is_mouse_pressed(glfw.MOUSE_BUTTON_1):
+        if is_mouse_pressed(glfw.MOUSE_BUTTON_2):
             if self._is_first_mouse:
                 self._last_x, self._last_y = get_mouse_position()
                 self._is_first_mouse = False

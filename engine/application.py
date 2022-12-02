@@ -39,13 +39,17 @@ class Application:
 
     def run(self):
         prev_time = glfw.get_time()
+        frame_count = 0
         while self.running:
+            frame_count += 1
             curr_time = glfw.get_time()
             delta_time = curr_time - prev_time
-            self.fps = 1 / delta_time
+            if delta_time > 0.5:
+                self.fps = frame_count / delta_time
+                prev_time = curr_time
+                frame_count = 0
             self._update(delta_time)
             self._render()
-            prev_time = curr_time
 
     def _shutdown(self):
         Shader.shutdown()
