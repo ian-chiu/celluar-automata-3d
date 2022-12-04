@@ -11,7 +11,7 @@ import engine.gl as gl
 from engine.texture import get_white_texture
 
 N_MAX_POINT_LIGHTS = 8
-MAX_BUFFER_SIZE = 10000000
+MAX_BUFFER_SIZE = 1000000
 
 
 class Renderer:

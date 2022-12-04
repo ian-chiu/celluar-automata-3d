@@ -4,13 +4,14 @@ from engine.application import Application
 from engine.camera import Camera
 from engine.event import Event, EventType
 from engine.input import get_mouse_position, is_key_pressed, is_mouse_pressed, \
-                         set_cursor_visable
+    set_cursor_visable
+
 
 class OrbitControl:
-    def __init__(self, radius = 10):
-        self.camera = Camera()
+    def __init__(self, radius=10):
+        self.camera = Camera(far=500)
         self.camera.position = glm.vec3(0, 0, radius)
-        self._radius = radius
+        self.radius = radius
         self._speed = 5.0
         self._orbit_yaw = 0
         self._orbit_pitch = 0
@@ -49,11 +50,11 @@ class OrbitControl:
             self._orbit_pitch = max(self._orbit_pitch, -89.0)
             updated_position = glm.vec3()
             updated_position.x = glm.sin(glm.radians(self._orbit_yaw)) \
-                * glm.cos(glm.radians(self._orbit_pitch)) * self._radius
+                * glm.cos(glm.radians(self._orbit_pitch)) * self.radius
             updated_position.y = glm.sin(glm.radians(
-                self._orbit_pitch)) * self._radius
+                self._orbit_pitch)) * self.radius
             updated_position.z = glm.cos(glm.radians(self._orbit_yaw)) \
-                * glm.cos(glm.radians(self._orbit_pitch)) * self._radius
+                * glm.cos(glm.radians(self._orbit_pitch)) * self.radius
             self.camera.position = updated_position
             self.camera.focus(self._focus_point)
         else:

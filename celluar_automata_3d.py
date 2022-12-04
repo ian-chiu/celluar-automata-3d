@@ -10,7 +10,7 @@ from engine.free_control import FreeControl
 from engine.light import DirLight
 from engine.model import Model
 from engine.orbit_control import OrbitControl
-from engine.renderer import Renderer
+from engine.renderer import MAX_BUFFER_SIZE, Renderer
 from engine.material import PhongMaterial
 from engine.geometry import BoxGeometry
 from engine.event import EventType
@@ -29,6 +29,10 @@ class CelluarAutomata3D(Application):
         self.camera_control = self.orbit_control
         self.dir_light = DirLight(direction=[1, -1, 1])
         self.rules = {
+            "amoeba": Rule(
+                "9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26/"
+                "5,6,7,12,14,15/16/M", 0.4, 0.5
+            ),
             "crystal_growth": Rule("0,1,2,3,4,5,6/1,3/2/VN", 1.0, 0.1),
             "cloud": Rule("13,14,15,16,17,18,19,20,21,22,23,24,25,26"
                           "/13,14,17,18,19/2/M", 0.8, 0.5),
@@ -36,6 +40,10 @@ class CelluarAutomata3D(Application):
                                "19,20,21,22,23,24,25,26/"
                                "13,14,15,16,17,18,19,20,21,22,23,24,25,26/5/M",
                                0.5, 1.0),
+            "ripple_cube": Rule(
+                "8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26/"
+                "4,12,14,15/10/M", 0.5, 0.5
+            ),
             "445": Rule("4/4/5/M", 0.1, 1.0)
         }
         self.board = Board(50, self.rules['crystal_growth'], 0.4)
@@ -91,7 +99,7 @@ class CelluarAutomata3D(Application):
             camera=self.camera_control.camera,
             dir_light=self.dir_light
         )
-        Renderer.draw_batch(self.board.vertex_buffer)
+        self.board.render()
         Renderer.end_scene()
 
     def on_render_gui(self):
@@ -175,11 +183,12 @@ class CelluarAutomata3D(Application):
                     value=self.board.get_side(),
                     change_speed=1,
                     min_value=10,
-                    max_value=70,
+                    max_value=150,
                     format='%.2f'
                 )
                 if changed:
                     self.board.set_side(value)
+                    self.orbit_control.radius = value * 2
 
                 changed = False
                 changed, value = imgui.drag_float(

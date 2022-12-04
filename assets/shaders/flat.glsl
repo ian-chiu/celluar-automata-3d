@@ -29,13 +29,11 @@ in vec4 v_Color;
 
 out vec4 color;
 
-uniform float u_TilingFactor;
 uniform sampler2D u_Texture;
 
 void main()
 {
-    // color = texture(u_Texture, v_UV) * v_Color;
-    color = vec4(v_UV, 0, 1);
+    color = texture(u_Texture, v_UV) * v_Color;
 }
 #endif
 //--------------------------------------------------

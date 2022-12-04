@@ -7,6 +7,7 @@
 #include <pybind11/stl_bind.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <memory>
@@ -21,7 +22,7 @@ PYBIND11_MAKE_OPAQUE(std::vector<float>);
 py::object glm = py::module_::import("moderngl");
 py::object Rule = py::module_::import("rule").attr("Rule");
 py::object Renderer = py::module_::import("engine.renderer").attr("Renderer");
-const int MAX_BUFFER_SIZE =
+const size_t MAX_BUFFER_SIZE =
     py::module_::import("engine.renderer").attr("MAX_BUFFER_SIZE").cast<int>();
 py::object Model = py::module_::import("engine.model").attr("Model");
 py::object PhongMaterial =
@@ -60,27 +61,14 @@ void Board::update() {
         mCellsBuffer[index] = applyRule(neighborCount, mCells[index]);
     }
     std::swap(mCellsBuffer, mCells);
-    resetVertexBuffer();
-    calculateGreedyMeshes();
 }
 
-void Board::render() {
-    py::object drawModel = Renderer.attr("draw_model");
-    for (size_t index = 0; index < mCells.size(); index++) {
-        if (mCells[index] == 0) {
-            continue;
-        }
-        py::list pos;
-        std::vector<int> coord = getCoordinate(index);
-        for (int value : coord) {
-            pos.append(value - mSide / 2.0f);
-        }
-        drawModel(mCubeModel, pos);
-    }
-}
+void Board::render() { renderGreedyMeshes(); }
 
 void Board::clear() {
     resetVertexBuffer();
+    mCells.resize(mSide * mSide * mSide, 0);
+    mCellsBuffer.resize(mSide * mSide * mSide, 0);
     std::fill(mCells.begin(), mCells.end(), 0);
     std::fill(mCellsBuffer.begin(), mCellsBuffer.end(), 0);
 }
@@ -88,6 +76,7 @@ void Board::clear() {
 void Board::setSide(size_t side) {
     mSide = side;
     clear();
+    randomise(mRule);
 }
 
 void Board::setRule(py::object rule) {
@@ -110,7 +99,6 @@ void Board::randomise(float radius, float density) {
             mCells[index] = 1;
         }
     }
-    calculateGreedyMeshes();
 }
 
 void Board::randomise(py::object rule) {
@@ -183,9 +171,10 @@ int Board::countNeighbors(int index) {
     return neighbors;
 }
 
-void Board::calculateGreedyMeshes() {
+void Board::renderGreedyMeshes() {
     mVertexBufferIndex = 0;
     mQuadCount = 0;
+    py::object drawBatch = Renderer.attr("draw_batch");
 
     // sweep over each axis (X, Y, Z)
     for (int d = 0; d < 3; d++) {
@@ -218,6 +207,16 @@ void Board::calculateGreedyMeshes() {
                 }
             }
             x[d]++;
+
+            bool isBackFace = x[d] % 2;
+            Face face;
+            if (d == 0) {
+                face = isBackFace ? Face::LEFT : Face::RIGHT;
+            } else if (d == 1) {
+                face = isBackFace ? Face::DOWN : Face::UP;
+            } else if (d == 2) {
+                face = isBackFace ? Face::BACK : Face::FRONT;
+            }
 
             // Generate mesh for mask using lexicographic ordering
             n = 0;
@@ -264,6 +263,15 @@ void Board::calculateGreedyMeshes() {
                     int bl[3] = {x[0] + dv[0], x[1] + dv[1], x[2] + dv[2]};
 
                     int* positions[4] = {bl, br, tr, tl};
+                    if (isBackFace) {
+                        std::swap(positions[1], positions[3]);
+                    }
+
+                    if (mVertexBufferIndex + 100 > MAX_BUFFER_SIZE) {
+                        drawBatch(mVertexBuffer);
+                        mVertexBufferIndex = 0;
+                        resetVertexBuffer();
+                    }
 
                     int index = mVertexBufferIndex;
                     int uvs[4][2] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
@@ -281,14 +289,56 @@ void Board::calculateGreedyMeshes() {
                         mVertexBuffer.mutable_at(index + 4) = uvs[i][1];
 
                         // normal
-                        mVertexBuffer.mutable_at(index + 5) = 1.0f;
-                        mVertexBuffer.mutable_at(index + 6) = 0.0f;
-                        mVertexBuffer.mutable_at(index + 7) = 0.0f;
+                        float normal[3] = {0};
+                        if (face == Face::RIGHT) {
+                            normal[0] = 1;
+                            normal[1] = 0;
+                            normal[2] = 0;
+                        } else if (face == Face::LEFT) {
+                            normal[0] = -1;
+                            normal[1] = 0;
+                            normal[2] = 0;
+                        } else if (face == Face::UP) {
+                            normal[0] = 0;
+                            normal[1] = 1;
+                            normal[2] = 0;
+                        } else if (face == Face::DOWN) {
+                            normal[0] = 0;
+                            normal[1] = -1;
+                            normal[2] = 0;
+                        } else if (face == Face::FRONT) {
+                            normal[0] = 0;
+                            normal[1] = 0;
+                            normal[2] = 1;
+                        } else {
+                            normal[0] = 0;
+                            normal[1] = 0;
+                            normal[2] = -1;
+                        }
+
+                        mVertexBuffer.mutable_at(index + 5) = normal[0];
+                        mVertexBuffer.mutable_at(index + 6) = normal[1];
+                        mVertexBuffer.mutable_at(index + 7) = normal[2];
 
                         // color
-                        mVertexBuffer.mutable_at(index + 8) = 0.0f;
-                        mVertexBuffer.mutable_at(index + 9) = 0.3f;
-                        mVertexBuffer.mutable_at(index + 10) = 1.0f;
+                        int rgb[3] = {0};
+                        if (face == Face::RIGHT || face == Face::LEFT) {
+                            rgb[0] = 244;
+                            rgb[1] = 125;
+                            rgb[2] = 126;
+                        } else if (face == Face::UP || face == Face::DOWN) {
+                            rgb[0] = 117;
+                            rgb[1] = 236;
+                            rgb[2] = 125;
+                        } else {
+                            rgb[0] = 128;
+                            rgb[1] = 126;
+                            rgb[2] = 250;
+                        }
+
+                        mVertexBuffer.mutable_at(index + 8) = rgb[0] / 255.0f;
+                        mVertexBuffer.mutable_at(index + 9) = rgb[1] / 255.0f;
+                        mVertexBuffer.mutable_at(index + 10) = rgb[2] / 255.0f;
                         mVertexBuffer.mutable_at(index + 11) = 1.0f;
 
                         index += 12;
@@ -309,6 +359,9 @@ void Board::calculateGreedyMeshes() {
             }
         }
     }
+    drawBatch(mVertexBuffer);
+    mVertexBufferIndex = 0;
+    resetVertexBuffer();
 }
 
 PYBIND11_MODULE(_board, m) {

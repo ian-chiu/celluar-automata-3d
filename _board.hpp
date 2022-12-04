@@ -26,10 +26,10 @@ class Board {
     size_t mVertexBufferIndex;
 
  private:
-    enum class Face { SOUTH, NORTH, EAST, WEST, TOP, BOTTOM, COUNT };
+    enum class Face { BACK, FRONT, RIGHT, LEFT, UP, DOWN, COUNT };
 
  private:
-    void calculateGreedyMeshes();
+    void renderGreedyMeshes();
     int applyRule(int neighborCount, int cellState);
     int countNeighbors(int index);
     int getIndex(int x, int y, int z);
@@ -44,8 +44,4 @@ class Board {
     py::object mCubeModel;
     std::vector<int> mCells;
     std::vector<int> mCellsBuffer;
-    std::vector<std::vector<float>> mFaceNormals{
-        {0.0f, 1.0f, 0.0f},  {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f},
-        {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f},
-    };
 };
