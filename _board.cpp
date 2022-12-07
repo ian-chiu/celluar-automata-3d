@@ -9,9 +9,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <future>
 #include <iostream>
 #include <memory>
-#include <unordered_set>
+#include <queue>
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -52,18 +53,32 @@ Board::Board(int side, py::object rule, float evolveTime)
     py::object material =
         PhongMaterial("color"_a = py::make_tuple(0.5, 0.8, 0.1));
     mCubeModel = Model(BoxGeometry(), material);
+    setRuleBuffer(rule);
     randomise(rule);
 }
 
 void Board::update() {
-    for (size_t index = 0; index < mCells.size(); index++) {
-        int neighborCount = countNeighbors(index);
-        mCellsBuffer[index] = applyRule(neighborCount, mCells[index]);
+    static std::queue<std::future<void>> futures;
+    auto asyncTask = [&](size_t divider) {
+        for (size_t i = 0; i < getSize() / mSide; i++) {
+            size_t index = getSize() / mSide * divider + i;
+            int neighborCount = countNeighbors(index);
+            mCellsBuffer[index] = applyRule(neighborCount, mCells[index]);
+        }
+    };
+    for (size_t divider = 0; divider < mSide; divider++) {
+        futures.emplace(std::async(std::launch::async, asyncTask, divider));
+    }
+    while (!futures.empty()) {
+        futures.front().wait();
+        futures.pop();
     }
     std::swap(mCellsBuffer, mCells);
 }
 
-void Board::render() { renderGreedyMeshes(); }
+void Board::render() {
+    renderGreedyMeshes();
+}
 
 void Board::clear() {
     resetVertexBuffer();
@@ -81,6 +96,7 @@ void Board::setSide(size_t side) {
 
 void Board::setRule(py::object rule) {
     mRule = rule;
+    setRuleBuffer(rule);
     clear();
     randomise(rule);
 }
@@ -124,16 +140,21 @@ void Board::resetVertexBuffer() {
     std::memset(data, 0, sizeof(float) * MAX_BUFFER_SIZE);
 }
 
+void Board::setRuleBuffer(py::object rule) {
+    mRuleBuffer.spawn = mRule.attr("spawn").cast<std::unordered_set<int>>();
+    mRuleBuffer.survival =
+        mRule.attr("survival").cast<std::unordered_set<int>>();
+    mRuleBuffer.maxState = mRule.attr("max_state").cast<uint32_t>();
+    mRuleBuffer.neighbor = mRule.attr("neighbor").cast<std::string>();
+}
+
 int Board::applyRule(int neighborCount, int cellState) {
-    py::set spawn = mRule.attr("spawn");
-    py::set survival = mRule.attr("survival");
-    int maxState = mRule.attr("max_state").cast<int>();
-    if (cellState == 0 && spawn.contains(neighborCount)) {
+    if (cellState == 0 && mRuleBuffer.spawn.count(neighborCount)) {
         cellState = 1;
-    } else if (cellState > 1 ||
-               (cellState == 1 && !survival.contains(neighborCount))) {
+    } else if (cellState > 1 || (cellState == 1 &&
+                                 !mRuleBuffer.survival.count(neighborCount))) {
         cellState++;
-        if (cellState >= maxState) {
+        if (cellState >= mRuleBuffer.maxState) {
             cellState = 0;
         }
     }
@@ -143,8 +164,8 @@ int Board::applyRule(int neighborCount, int cellState) {
 int Board::countNeighbors(int index) {
     int neighbors = 0;
     int side = mSide;
-    std::string neighborType = mRule.attr("neighbor").cast<std::string>();
-    const auto& offsets = neighborType == "M" ? mooreOffsets : vnOffsets;
+    const auto& offsets =
+        mRuleBuffer.neighbor == "M" ? mooreOffsets : vnOffsets;
     const auto coordinate = getCoordinate(index);
     for (const auto& offset : offsets) {
         int offX = coordinate[0] + offset[0];

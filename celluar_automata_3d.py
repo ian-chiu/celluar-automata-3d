@@ -48,7 +48,7 @@ class CelluarAutomata3D(Application):
         }
         self.board = Board(50, self.rules['crystal_growth'], 0.4)
         self.paused = True
-        self.evolve_period = 0.1
+        self.evolve_period = 0.05
         self.last_board_update_time = time.time()
         self.rule_current_index = 0
         self.randomise_radius = self.board.get_rule().initial_radius
@@ -95,10 +95,7 @@ class CelluarAutomata3D(Application):
         imgui.render()
 
     def on_render(self):
-        Renderer.begin_scene(
-            camera=self.camera_control.camera,
-            dir_light=self.dir_light
-        )
+        Renderer.begin_scene(camera=self.camera_control.camera)
         self.board.render()
         Renderer.end_scene()
 
