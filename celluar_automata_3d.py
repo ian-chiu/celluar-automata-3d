@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
+from typing import List
 import glfw
 import imgui
 import time
+import json
 from moderngl import CULL_FACE
 from rule import Rule
 from engine.application import Application
 from engine.event import Event
 from engine.free_control import FreeControl
-from engine.light import DirLight
-from engine.model import Model
 from engine.orbit_control import OrbitControl
-from engine.renderer import MAX_BUFFER_SIZE, Renderer
-from engine.material import PhongMaterial
-from engine.geometry import BoxGeometry
+from engine.renderer import Renderer
 from engine.event import EventType
 from engine.input import is_key_pressed
 import engine.gl as gl
@@ -22,39 +20,26 @@ from _board import Board
 class CelluarAutomata3D(Application):
     def __init__(self):
         super().__init__(window_title="CelluarAutomata3D")
-        self.cube = Model(BoxGeometry(),
-                          PhongMaterial(color=[0.5, 0.8, 0.1]))
         self.free_control = FreeControl()
         self.orbit_control = OrbitControl(100)
         self.camera_control = self.orbit_control
-        self.dir_light = DirLight(direction=[1, -1, 1])
-        self.rules = {
-            "amoeba": Rule(
-                "9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26/"
-                "5,6,7,12,14,15/16/M", 0.4, 0.5
-            ),
-            "crystal_growth": Rule("0,1,2,3,4,5,6/1,3/2/VN", 1.0, 0.1),
-            "cloud": Rule("13,14,15,16,17,18,19,20,21,22,23,24,25,26"
-                          "/13,14,17,18,19/2/M", 0.8, 0.5),
-            "slow_decay": Rule("8,11,13,14,15,16,17,18,"
-                               "19,20,21,22,23,24,25,26/"
-                               "13,14,15,16,17,18,19,20,21,22,23,24,25,26/5/M",
-                               0.5, 1.0),
-            "ripple_cube": Rule(
-                "8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26/"
-                "4,12,14,15/10/M", 0.5, 0.5
-            ),
-            "445": Rule("4/4/5/M", 0.1, 1.0),
-            "pyroclastic": Rule(
-                "4,5,6,7/"
-                "6,7,8/10/M", 0.5, 0.5
-            ),
-        }
-        self.board = Board(50, self.rules['crystal_growth'])
+        self.rules: List[Rule] = []
+        with open("./rules.json") as jsonfile:
+            rules = json.load(jsonfile)
+            for rule in rules:
+                self.rules.append(
+                    Rule(
+                        rule["name"],
+                        rule["format"],
+                        rule["initial_density"],
+                        rule["initial_radius"],
+                    )
+                )
+        self.rule_index = 0
+        self.board = Board(70, self.rules[self.rule_index])
         self.paused = True
         self.evolve_period = 0.05
         self.last_board_update_time = time.time()
-        self.rule_current_index = 0
         self.randomise_radius = self.board.get_rule().initial_radius
         self.randomise_density = self.board.get_rule().initial_density
         self.board.randomise(self.randomise_radius, self.randomise_density)
@@ -82,15 +67,16 @@ class CelluarAutomata3D(Application):
                     self.board.update()
                 if event.key == glfw.KEY_R:
                     Renderer.clear_vertex_buffer()
-                    self.board.randomise(self.randomise_radius,
-                                         self.randomise_density)
+                    self.board.randomise(self.randomise_radius, self.randomise_density)
                 if event.key == glfw.KEY_E:
                     Renderer.clear_vertex_buffer()
                     self.board.clear()
                 if event.key == glfw.KEY_C:
-                    self.camera_control = self.orbit_control \
-                        if self.camera_control == self.free_control \
+                    self.camera_control = (
+                        self.orbit_control
+                        if self.camera_control == self.free_control
                         else self.free_control
+                    )
                 if event.key == glfw.KEY_Q or event.key == glfw.KEY_ESCAPE:
                     self.running = False
                 if self.paused and event.key == glfw.KEY_RIGHT:
@@ -123,27 +109,29 @@ class CelluarAutomata3D(Application):
                 imgui.bullet_text("Spacebar: pause/continue simulation")
                 imgui.bullet_text("F: update one step forward")
                 imgui.bullet_text("Q/Esc: quit the application")
-                imgui.bullet_text("Different rules can be selected "
-                                  "in Rules section")
+                imgui.bullet_text("Different rules can be selected in Rules section")
+                imgui.bullet_text("You can add your own rules to rules.json file")
 
                 imgui.text("CAMERA")
-                imgui.bullet_text("There are two camera controllers: "
-                                  "Free and Orbit Controller")
+                imgui.bullet_text(
+                    "There are two camera controllers: " "Free and Orbit Controller"
+                )
                 imgui.bullet_text("C: toggle between two controllers")
 
                 imgui.bullet_text("While in free mode:")
                 imgui.indent()
-                imgui.bullet_text("Pressed mouse right and move to "
-                                  "rotate the camera")
+                imgui.bullet_text(
+                    "Pressed mouse right and move to " "rotate the camera"
+                )
                 imgui.bullet_text("WASD: move the camera")
-                imgui.bullet_text("Scroll mouse wheel to change "
-                                  "the moving speed")
+                imgui.bullet_text("Scroll mouse wheel to change " "the moving speed")
                 imgui.unindent()
 
                 imgui.bullet_text("While in orbit mode:")
                 imgui.indent()
-                imgui.bullet_text("Pressed mouse right and move to "
-                                  "rotate the camera")
+                imgui.bullet_text(
+                    "Pressed mouse right and move to " "rotate the camera"
+                )
                 imgui.bullet_text("Scroll mouse wheel to zoom in/out")
                 imgui.unindent()
                 imgui.separator()
@@ -158,13 +146,13 @@ class CelluarAutomata3D(Application):
         def draw_rules():
             expanded, _ = imgui.collapsing_header("Rules", flags=flags)
             if expanded:
-                keys = [str(k) for k in self.rules]
-                clicked, self.rule_current_index = imgui.listbox(
-                    "##listbox_rules", self.rule_current_index, keys
+                rule_names = [rule.name for rule in self.rules]
+                clicked, self.rule_index = imgui.listbox(
+                    "##listbox_rules", self.rule_index, rule_names
                 )
                 if clicked:
                     Renderer.clear_vertex_buffer()
-                    selected_rule = self.rules[keys[self.rule_current_index]]
+                    selected_rule = self.rules[self.rule_index]
                     self.board.set_rule(selected_rule)
                     self.randomise_radius = selected_rule.initial_radius
                     self.randomise_density = selected_rule.initial_density
@@ -179,7 +167,7 @@ class CelluarAutomata3D(Application):
                     change_speed=0.01,
                     min_value=0.01,
                     max_value=5.0,
-                    format='%.2f'
+                    format="%.2f",
                 )
                 if changed:
                     self.evolve_period = value
@@ -190,8 +178,8 @@ class CelluarAutomata3D(Application):
                     value=self.board.get_side(),
                     change_speed=1,
                     min_value=5,
-                    max_value=300,
-                    format='%.2f'
+                    max_value=200,
+                    format="%.2f",
                 )
                 if changed:
                     Renderer.clear_vertex_buffer()
@@ -203,9 +191,9 @@ class CelluarAutomata3D(Application):
                     "randomise radius",
                     value=self.randomise_radius,
                     change_speed=0.01,
-                    min_value=0.05,
+                    min_value=0.01,
                     max_value=1.0,
-                    format='%.2f'
+                    format="%.2f",
                 )
                 if changed:
                     self.randomise_radius = value
@@ -217,7 +205,7 @@ class CelluarAutomata3D(Application):
                     change_speed=0.01,
                     min_value=0.05,
                     max_value=1.0,
-                    format='%.2f'
+                    format="%.2f",
                 )
                 if changed:
                     self.randomise_density = value

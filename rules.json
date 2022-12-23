@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Crystal Growth",
+    "format": "0-6/1,3/2/VN",
+    "initial_density": 1.0,
+    "initial_radius": 0.1
+  },
+  {
+    "name": "445",
+    "format": "4/4/5/M",
+    "initial_density": 0.1,
+    "initial_radius": 1.0
+  },
+  {
+    "name": "Amoeba",
+    "format": "9-26/5-7,12,14,15/16/M",
+    "initial_density": 0.4,
+    "initial_radius": 0.5
+  },
+  {
+    "name": "Cloud",
+    "format": "13-26/13,14,17-19/2/M",
+    "initial_density": 0.8,
+    "initial_radius": 0.5
+  },
+  {
+    "name": "Slow Decay",
+    "format": "8,11,13-26/13-26/5/M",
+    "initial_density": 0.5,
+    "initial_radius": 1.0
+  },
+  {
+    "name": "Ripple Cube",
+    "format": "8,10-26/4,12,14,15/10/M",
+    "initial_density": 0.5,
+    "initial_radius": 0.5
+  },
+  {
+    "name": "Pyroclastic",
+    "format": "4-7/6-8/10/M",
+    "initial_density": 0.5,
+    "initial_radius": 0.5
+  }
+]
