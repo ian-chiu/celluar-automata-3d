@@ -2,9 +2,11 @@ from typing import Optional
 from moderngl import Program
 import engine.gl as gl
 
+
 class Shader:
     flat: Optional[Program] = None
     phong: Optional[Program] = None
+    phong_batch: Optional[Program] = None
     background: Optional[Program] = None
 
     @staticmethod
@@ -36,12 +38,12 @@ class Shader:
             while line_index < len(lines):
                 if "VERTEX_SHADER" in lines[line_index]:
                     line_index += 1
-                    while not "endif" in lines[line_index]:
+                    while "endif" not in lines[line_index]:
                         vertex_source += lines[line_index]
                         line_index += 1
                 elif "FRAGMENT_SHADER" in lines[line_index]:
                     line_index += 1
-                    while not "endif" in lines[line_index]:
+                    while "endif" not in lines[line_index]:
                         fragment_source += lines[line_index]
                         line_index += 1
                 line_index += 1

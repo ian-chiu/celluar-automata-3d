@@ -23,13 +23,9 @@ PYBIND11_MAKE_OPAQUE(std::vector<float>);
 py::object glm = py::module_::import("moderngl");
 py::object Rule = py::module_::import("rule").attr("Rule");
 py::object Renderer = py::module_::import("engine.renderer").attr("Renderer");
+py::object drawBatch = Renderer.attr("draw_batch");
 const size_t MAX_BUFFER_SIZE =
     py::module_::import("engine.renderer").attr("MAX_BUFFER_SIZE").cast<int>();
-py::object Model = py::module_::import("engine.model").attr("Model");
-py::object PhongMaterial =
-    py::module_::import("engine.material").attr("PhongMaterial");
-py::object BoxGeometry =
-    py::module_::import("engine.geometry").attr("BoxGeometry");
 
 static const std::vector<std::vector<int>> mooreOffsets{
     {1, -1, -1}, {1, -1, 0},  {1, -1, 1},  {1, 0, -1},  {1, 0, 0},
@@ -42,19 +38,14 @@ static const std::vector<std::vector<int>> mooreOffsets{
 static const std::vector<std::vector<int>> vnOffsets{
     {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
-Board::Board(int side, py::object rule, float evolveTime)
+Board::Board(int side, py::object rule)
     : mSide(side),
-      mEvolveTime(evolveTime),
+      mQuadCount(0),
       mRule(rule),
       mCells(side * side * side),
-      mCellsBuffer(side * side * side),
-      mVertexBuffer(MAX_BUFFER_SIZE),
-      mVertexBufferIndex(0) {
-    py::object material =
-        PhongMaterial("color"_a = py::make_tuple(0.5, 0.8, 0.1));
-    mCubeModel = Model(BoxGeometry(), material);
+      mCellsBuffer(side * side * side) {
     setRuleBuffer(rule);
-    randomise(rule);
+    mVertexBuffer.reserve(MAX_BUFFER_SIZE);
 }
 
 void Board::update() {
@@ -74,14 +65,26 @@ void Board::update() {
         futures.pop();
     }
     std::swap(mCellsBuffer, mCells);
+    calculateGreedyMeshes();
 }
 
 void Board::render() {
-    renderGreedyMeshes();
+    int batchCount = mVertexBuffer.size() / MAX_BUFFER_SIZE;
+    for (int count = 0; count < batchCount; count++) {
+        drawBatch(py::memoryview::from_memory(
+            mVertexBuffer.data() + count * MAX_BUFFER_SIZE,
+            sizeof(float) * MAX_BUFFER_SIZE));
+    }
+    int remain = mVertexBuffer.size() - batchCount * MAX_BUFFER_SIZE;
+    if (remain > 0) {
+        drawBatch(py::memoryview::from_memory(
+            mVertexBuffer.data() + batchCount * MAX_BUFFER_SIZE,
+            sizeof(float) * remain));
+    }
 }
 
 void Board::clear() {
-    resetVertexBuffer();
+    mVertexBuffer.clear();
     mCells.resize(mSide * mSide * mSide, 0);
     mCellsBuffer.resize(mSide * mSide * mSide, 0);
     std::fill(mCells.begin(), mCells.end(), 0);
@@ -101,6 +104,18 @@ void Board::setRule(py::object rule) {
     randomise(rule);
 }
 
+size_t Board::coordToIndex(size_t x, size_t y, size_t z) const {
+    return x + mSide * (y + mSide * z);
+}
+
+int Board::getCellState(size_t x, size_t y, size_t z) const {
+    return mCells[coordToIndex(x, y, z)];
+}
+
+void Board::setCellState(int state, size_t x, size_t y, size_t z) {
+    mCells[coordToIndex(x, y, z)] = state;
+}
+
 void Board::randomise(float radius, float density) {
     float side = mSide;
     for (size_t index = 0; index < mCells.size(); index++) {
@@ -115,6 +130,7 @@ void Board::randomise(float radius, float density) {
             mCells[index] = 1;
         }
     }
+    calculateGreedyMeshes();
 }
 
 void Board::randomise(py::object rule) {
@@ -133,11 +149,6 @@ std::vector<int> Board::getCoordinate(int index) {
     int y = index / mSide;
     int x = index % mSide;
     return {x, y, z};
-}
-
-void Board::resetVertexBuffer() {
-    float* data = mVertexBuffer.mutable_data(0);
-    std::memset(data, 0, sizeof(float) * MAX_BUFFER_SIZE);
 }
 
 void Board::setRuleBuffer(py::object rule) {
@@ -192,10 +203,9 @@ int Board::countNeighbors(int index) {
     return neighbors;
 }
 
-void Board::renderGreedyMeshes() {
-    mVertexBufferIndex = 0;
+void Board::calculateGreedyMeshes() {
+    mVertexBuffer.clear();
     mQuadCount = 0;
-    py::object drawBatch = Renderer.attr("draw_batch");
 
     // sweep over each axis (X, Y, Z)
     for (int d = 0; d < 3; d++) {
@@ -288,26 +298,18 @@ void Board::renderGreedyMeshes() {
                         std::swap(positions[1], positions[3]);
                     }
 
-                    if (mVertexBufferIndex + 100 > MAX_BUFFER_SIZE) {
-                        drawBatch(mVertexBuffer);
-                        mVertexBufferIndex = 0;
-                        resetVertexBuffer();
-                    }
-
-                    int index = mVertexBufferIndex;
                     int uvs[4][2] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
                     for (int i = 0; i < 4; i++) {
                         // positions
-                        mVertexBuffer.mutable_at(index) =
-                            positions[i][0] - (mSide / 2.0f + 0.5f);
-                        mVertexBuffer.mutable_at(index + 1) =
-                            positions[i][1] - (mSide / 2.0f + 0.5f);
-                        mVertexBuffer.mutable_at(index + 2) =
-                            positions[i][2] - (mSide / 2.0f + 0.5f);
+                        mVertexBuffer.push_back(positions[i][0] -
+                                                (mSide / 2.0f + 0.5f));
+                        mVertexBuffer.push_back(positions[i][1] -
+                                                (mSide / 2.0f + 0.5f));
+                        mVertexBuffer.push_back(positions[i][2] -
+                                                (mSide / 2.0f + 0.5f));
 
-                        // uvs
-                        mVertexBuffer.mutable_at(index + 3) = uvs[i][0];
-                        mVertexBuffer.mutable_at(index + 4) = uvs[i][1];
+                        mVertexBuffer.push_back(uvs[i][0]);
+                        mVertexBuffer.push_back(uvs[i][1]);
 
                         // normal
                         float normal[3] = {0};
@@ -337,9 +339,9 @@ void Board::renderGreedyMeshes() {
                             normal[2] = -1;
                         }
 
-                        mVertexBuffer.mutable_at(index + 5) = normal[0];
-                        mVertexBuffer.mutable_at(index + 6) = normal[1];
-                        mVertexBuffer.mutable_at(index + 7) = normal[2];
+                        mVertexBuffer.push_back(normal[0]);
+                        mVertexBuffer.push_back(normal[1]);
+                        mVertexBuffer.push_back(normal[2]);
 
                         // color
                         int rgb[3] = {0};
@@ -357,14 +359,11 @@ void Board::renderGreedyMeshes() {
                             rgb[2] = 250;
                         }
 
-                        mVertexBuffer.mutable_at(index + 8) = rgb[0] / 255.0f;
-                        mVertexBuffer.mutable_at(index + 9) = rgb[1] / 255.0f;
-                        mVertexBuffer.mutable_at(index + 10) = rgb[2] / 255.0f;
-                        mVertexBuffer.mutable_at(index + 11) = 1.0f;
-
-                        index += 12;
+                        mVertexBuffer.push_back(rgb[0] / 255.0f);
+                        mVertexBuffer.push_back(rgb[1] / 255.0f);
+                        mVertexBuffer.push_back(rgb[2] / 255.0f);
+                        mVertexBuffer.push_back(1.0f);
                     }
-                    mVertexBufferIndex = index;
                     mQuadCount++;
 
                     // zero-out mask
@@ -380,14 +379,11 @@ void Board::renderGreedyMeshes() {
             }
         }
     }
-    drawBatch(mVertexBuffer);
-    mVertexBufferIndex = 0;
-    resetVertexBuffer();
 }
 
 PYBIND11_MODULE(_board, m) {
     py::class_<Board>(m, "Board")
-        .def(py::init<int, py::object, float>())
+        .def(py::init<int, py::object>())
         .def("update", &Board::update)
         .def("render", &Board::render)
         .def("clear", &Board::clear)
@@ -400,5 +396,7 @@ PYBIND11_MODULE(_board, m) {
         .def("set_rule", &Board::setRule)
         .def("get_rule", &Board::getRule)
         .def("get_quad_count", &Board::getQuadCount)
+        .def("get_cell_state", &Board::getCellState)
+        .def("set_cell_state", &Board::setCellState)
         .def_readonly("vertex_buffer", &Board::mVertexBuffer);
 }

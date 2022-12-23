@@ -44,27 +44,32 @@ class CelluarAutomata3D(Application):
                 "8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26/"
                 "4,12,14,15/10/M", 0.5, 0.5
             ),
-            "445": Rule("4/4/5/M", 0.1, 1.0)
+            "445": Rule("4/4/5/M", 0.1, 1.0),
+            "pyroclastic": Rule(
+                "4,5,6,7/"
+                "6,7,8/10/M", 0.5, 0.5
+            ),
         }
-        self.board = Board(50, self.rules['crystal_growth'], 0.4)
+        self.board = Board(50, self.rules['crystal_growth'])
         self.paused = True
         self.evolve_period = 0.05
         self.last_board_update_time = time.time()
         self.rule_current_index = 0
         self.randomise_radius = self.board.get_rule().initial_radius
         self.randomise_density = self.board.get_rule().initial_density
+        self.board.randomise(self.randomise_radius, self.randomise_density)
         gl.ctx.disable(CULL_FACE)
 
     def on_update(self, delta_time: float):
         if is_key_pressed(glfw.KEY_ESCAPE):
             self.running = False
-
         self.camera_control.on_update(delta_time)
 
         curr_time = time.time()
         dt = curr_time - self.last_board_update_time
         if not self.paused and dt > self.evolve_period:
             self.board.update()
+            Renderer.clear_vertex_buffer()
             self.last_board_update_time = time.time()
 
     def on_event(self, event: Event):
@@ -76,9 +81,11 @@ class CelluarAutomata3D(Application):
                 if self.paused and event.key == glfw.KEY_F:
                     self.board.update()
                 if event.key == glfw.KEY_R:
+                    Renderer.clear_vertex_buffer()
                     self.board.randomise(self.randomise_radius,
                                          self.randomise_density)
                 if event.key == glfw.KEY_E:
+                    Renderer.clear_vertex_buffer()
                     self.board.clear()
                 if event.key == glfw.KEY_C:
                     self.camera_control = self.orbit_control \
@@ -86,6 +93,8 @@ class CelluarAutomata3D(Application):
                         else self.free_control
                 if event.key == glfw.KEY_Q or event.key == glfw.KEY_ESCAPE:
                     self.running = False
+                if self.paused and event.key == glfw.KEY_RIGHT:
+                    self.board.update()
 
     def on_ready(self):
         imgui.new_frame()
@@ -154,6 +163,7 @@ class CelluarAutomata3D(Application):
                     "##listbox_rules", self.rule_current_index, keys
                 )
                 if clicked:
+                    Renderer.clear_vertex_buffer()
                     selected_rule = self.rules[keys[self.rule_current_index]]
                     self.board.set_rule(selected_rule)
                     self.randomise_radius = selected_rule.initial_radius
@@ -179,11 +189,12 @@ class CelluarAutomata3D(Application):
                     "border side",
                     value=self.board.get_side(),
                     change_speed=1,
-                    min_value=10,
-                    max_value=150,
+                    min_value=5,
+                    max_value=300,
                     format='%.2f'
                 )
                 if changed:
+                    Renderer.clear_vertex_buffer()
                     self.board.set_side(value)
                     self.orbit_control.radius = value * 2
 

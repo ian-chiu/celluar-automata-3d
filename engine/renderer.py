@@ -11,7 +11,7 @@ import engine.gl as gl
 from engine.texture import get_white_texture
 
 N_MAX_POINT_LIGHTS = 8
-MAX_BUFFER_SIZE = 1000000
+MAX_BUFFER_SIZE = 3600000
 
 
 class Renderer:
@@ -95,8 +95,15 @@ class Renderer:
         if self.camera:
             vao.program['u_ViewProjection'].write(self.camera.view_proj_matrix)
         vao.program['u_Transform'].write(glm.identity(glm.mat4))
+        if self.dir_light:
+            self.upload_dir_light(vao.program)
         self._vertex_buffer.write(vertices)
         vao.render()
+
+    @staticmethod
+    def clear_vertex_buffer():
+        self = Renderer
+        self._vertex_buffer.clear()
 
     @staticmethod
     def draw_model(model: Model, position: Tuple[float, float, float]) -> None:
@@ -111,9 +118,9 @@ class Renderer:
                 self.camera.position)
         transform = glm.translate(position)
         model.shader['u_Transform'].write(transform * model.transform)
-        self._upload_point_lights(model)
+        self.upload_point_lights(model.shader)
         if self.dir_light:
-            self._upload_dir_light(model)
+            self.upload_dir_light(model.shader)
         model.vertex_array.render()
 
     @staticmethod
@@ -132,29 +139,29 @@ class Renderer:
         gl.ctx.depth_func = '<'
 
     @staticmethod
-    def _upload_point_lights(model: Model) -> None:
-        if model.shader.get("u_PointLights", None):
+    def upload_point_lights(program: Program) -> None:
+        if program.get("u_PointLights", None):
             return
         self = Renderer
         if self.point_lights and len(self.point_lights):
-            model.shader['u_NPointLights'].write(
+            program['u_NPointLights'].write(
                 glm.int32(len(self.point_lights)))
         for i in range(min(N_MAX_POINT_LIGHTS, len(self.point_lights))):
             point_light = self.point_lights[i]
             name = f'u_PointLights[{i}]'
-            model.shader[name + '.linear'].write(point_light.linear)
-            model.shader[name + '.quadratic'].write(point_light.quadratic)
-            model.shader[name + '.position'].write(point_light.position)
-            model.shader[name + '.ambient'].write(point_light.ambient)
-            model.shader[name + '.diffuse'].write(point_light.diffuse)
-            model.shader[name + '.specular'].write(point_light.specular)
+            program[name + '.linear'].write(point_light.linear)
+            program[name + '.quadratic'].write(point_light.quadratic)
+            program[name + '.position'].write(point_light.position)
+            program[name + '.ambient'].write(point_light.ambient)
+            program[name + '.diffuse'].write(point_light.diffuse)
+            program[name + '.specular'].write(point_light.specular)
 
     @staticmethod
-    def _upload_dir_light(model: Model) -> None:
-        if model.shader.get("u_DirLight", None):
+    def upload_dir_light(program: Program) -> None:
+        if program.get("u_DirLight", None):
             return
         self = Renderer
-        model.shader['u_DirLight.direction'].write(self.dir_light.direction)
-        model.shader['u_DirLight.ambient'].write(self.dir_light.ambient)
-        model.shader['u_DirLight.diffuse'].write(self.dir_light.diffuse)
-        model.shader['u_DirLight.specular'].write(self.dir_light.specular)
+        program['u_DirLight.direction'].write(self.dir_light.direction)
+        program['u_DirLight.ambient'].write(self.dir_light.ambient)
+        program['u_DirLight.diffuse'].write(self.dir_light.diffuse)
+        program['u_DirLight.specular'].write(self.dir_light.specular)
